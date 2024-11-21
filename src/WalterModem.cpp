@@ -909,6 +909,7 @@ size_t WalterModem::_uartRead(uint8_t *buf, int readSize, bool tryHard)
 #ifdef CORE_DEBUG_LEVEL
     do {
         totalBytesRead += _uart->readBytes(buf, readSize - totalBytesRead);
+        //ESP_LOGD("WalterModem", "Read %d bytes (%.*s)", totalBytesRead, totalBytesRead, buf);
     } while(tryHard && totalBytesRead < readSize);
 #else
     do {
@@ -1684,6 +1685,19 @@ void WalterModem::_processQueueRsp(
             payload.data.regState = _regState;
 
             _sendCallbackToQueues(&payload);
+        }
+    }
+    else if (_buffStartsWith(buff, "+SQNINS: ")) {
+        ParsedMessage parsed;
+        if (_parseMessage(buff->data, buff->size, &parsed)) {
+            ESP_LOGD("WalterModem", "Got INS data");
+            //parsed.params[3] //cell id
+            //parsed.params[4] //TAC 
+            //parsed.params[5] //MCC + MNC
+            //parsed.params[7] //physical cell id 
+            //parsed.params[9] //rsrp 
+            //parsed.params[10] //rsrq
+
         }
     }
     else if (_buffStartsWith(buff, "+LPGNSSFIXPROG: "))
@@ -3786,13 +3800,13 @@ bool WalterModem::begin(uint8_t uartNo, uint8_t watchdogTimeout)
             .trigger_panic = true
         };
 #if CONFIG_ESP_TASK_WDT_INIT
-        esp_task_wdt_reconfigure(&twdt_config);
+        //esp_task_wdt_reconfigure(&twdt_config);
 #else
         esp_task_wdt_init(&twdt_config);
 #endif
 #endif
 
-        esp_task_wdt_add(NULL);
+        //esp_task_wdt_add(NULL);
     }
     
     _taskQueue.handle = xQueueCreateStatic(WALTER_MODEM_TASK_QUEUE_MAX_ITEMS,
@@ -5530,6 +5544,16 @@ bool WalterModem::getCereg(WalterModemRsp *rsp, walterModemCb cb, void *args) {
     _returnAfterReply();
 }
 
+bool WalterModem::getGNSSFix(WalterModemRsp *rsp, walterModemCb cb, void *args) {
+    _runCmd(arr("AT+LPGNSSGETFIX"), "OK", rsp, cb, args);
+    _returnAfterReply();
+}
+
+bool WalterModem::runInformalNetworkScan(WalterModemRsp *rsp, walterModemCb cb, void *args) {
+    _runCmd(arr("AT+SQNINS=0"), "OK", rsp, cb, args);
+    _returnAfterReply();
+}
+
 bool WalterModem::setBatteryMonitoring(WalterModemBatteryMode mode, int8_t threshold, int8_t period, WalterModemRsp *rsp, walterModemCb cb, void *args) {
     _runCmd(arr("AT+SQNVMON=", _digitStr(mode), ",", _atNum(threshold), ",", _atNum(period)), "OK", rsp, cb, args);
     _returnAfterReply();
@@ -5645,4 +5669,12 @@ void WalterModem::_sendCallbackToQueues(WalterCallbackPayload *payload) {
         //ESP_LOGD("WalterModemCB", "Sending to queue %i \r\n", i);
         xQueueSend(local_queues[i], payload, 0);
     }
+}
+
+void WalterModem::resetParser() {
+    ESP_LOGD("WalterModem", "Resetting parser");
+
+    //ESP_LOGD("WalterModem", "Buffer: %.*s", _parserData.buf->size, _parserData.buf->data); 
+
+    _parserData.state = WALTER_MODEM_RSP_PARSER_START_CR;
 }

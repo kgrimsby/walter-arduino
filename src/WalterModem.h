@@ -97,7 +97,7 @@
  * @brief The size of the stack of the command and response processing task.
  */
 //#define WALTER_MODEM_TASK_STACK_SIZE 4096
-#define WALTER_MODEM_TASK_STACK_SIZE 6144
+#define WALTER_MODEM_TASK_STACK_SIZE 16384
 
 /**
  * @brief The default number of attempts to execute a command.
@@ -4528,6 +4528,10 @@ class WalterModem
          */
         static bool getCereg(WalterModemRsp *rsp = NULL, walterModemCb cb = NULL, void *args = NULL);
 
+        static bool getGNSSFix(WalterModemRsp *rsp = NULL, walterModemCb cb = NULL, void *args = NULL);
+
+        static bool runInformalNetworkScan(WalterModemRsp *rsp = NULL, walterModemCb cb = NULL, void *args = NULL);
+
         /**
          * @brief Set battery monitoring mode.
          * 
@@ -4674,6 +4678,8 @@ class WalterModem
          * @param parsed The parsed message.
          */
         static bool _parseMessage(unsigned char* buffer, uint16_t size, ParsedMessage* parsed);
+
+        static void resetParser();
 };
 
 #endif
